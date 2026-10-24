@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Demo 3 · Context7 MCP</title>
+<style>
+  :root { --bg:#0b1220; --card:#151d2e; --accent:#38bdf8; --muted:#94a3b8; --text:#e2e8f0; --ok:#34d399; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,sans-serif; background:linear-gradient(180deg,#0b1220,#111827); color:var(--text); padding:24px; min-height:100vh; }
+  h1 { font-size:1.25rem; margin:0 0 8px; }
+  p.lead { color:var(--muted); margin:0 0 16px; font-size:.9rem; }
+  .wrap { max-width:880px; }
+  .card { background:var(--card); border:1px solid #243044; border-radius:12px; padding:16px; margin-bottom:14px; }
+  label { display:block; font-size:.8rem; color:var(--muted); margin-bottom:6px; }
+  input, select { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #334155; background:#0f172a; color:var(--text); margin-bottom:12px; }
+  button { background:var(--accent); color:#082f49; border:0; padding:10px 16px; border-radius:8px; font-weight:700; cursor:pointer; }
+  .steps { display:flex; gap:8px; margin:12px 0; flex-wrap:wrap; }
+  .step { font-size:.75rem; padding:4px 10px; border-radius:999px; background:#0f172a; color:var(--muted); border:1px solid #334155; }
+  .step.on { color:#082f49; background:var(--accent); border-color:var(--accent); }
+  pre { background:#020617; padding:12px; border-radius:8px; overflow:auto; font-size:.78rem; color:#cbd5e1; white-space:pre-wrap; }
+  .ok { color:var(--ok); }
+  footer { font-size:.75rem; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Demo 3 · Context7：resolve → query-docs</h1>
+  <p class="lead">模拟 MCP 工具链：先把库名解析成 Context7 libraryId，再拉取版本锚定文档。对应 upstash/context7（MIT）。</p>
+  <div class="card">
+    <div class="steps">
+      <span class="step" id="s1">1. resolve-library-id</span>
+      <span class="step" id="s2">2. query-docs</span>
+      <span class="step" id="s3">3. 注入 Agent 上下文</span>
+    </div>
+    <label>用户问题 / query</label>
+    <input id="query" value="Next.js App Router 里如何做 proxy 并把未登录用户重定向到 /login？" />
+    <label>libraryName</label>
+    <input id="lib" value="next.js" />
+    <button type="button" id="go">调用示意 MCP</button>
+  </div>
+  <div class="card">
+    <label>工具往返（模拟）</label>
+    <pre id="out">等待调用…</pre>
+  </div>
+  <footer>本地静态 demo · 周报 2026-W43 · 不请求 Context7 线上 API</footer>
+</div>
+<script>
+const catalog = {
+  'next.js': { id: '/vercel/next.js', title: 'Next.js', snippets: [
+    '## proxy / middleware\n导出 middleware 时匹配路径，校验 cookie 中的 JWT，失败则 NextResponse.redirect(new URL("/login", request.url))。',
+    '## App Router 注意\nmiddleware 运行在 Edge；不要在其中调用 Node-only API。'
+  ]},
+  'supabase': { id: '/supabase/supabase', title: 'Supabase', snippets: [
+    '## Auth signUp\nsupabase.auth.signUp({ email, password }) 返回 data.user / error。'
+  ]},
+};
+const out = document.getElementById('out');
+const [s1,s2,s3] = [document.getElementById('s1'),document.getElementById('s2'),document.getElementById('s3')];
+function mark(n){ [s1,s2,s3].forEach((el,i)=>el.classList.toggle('on', i<n)); }
+document.getElementById('go').onclick = async () => {
+  const q = document.getElementById('query').value.trim();
+  const name = document.getElementById('lib').value.trim().toLowerCase();
+  const hit = catalog[name] || { id: '/unknown/' + name, title: name, snippets: ['（示意）未命中本地假数据，真实 MCP 会查 Context7 索引。'] };
+  mark(1);
+  out.textContent = `tool: resolve-library-id\nargs: { libraryName: "${name}", query: "${q.slice(0,48)}…" }\n\n← { libraryId: "${hit.id}", name: "${hit.title}" }`;
+  await new Promise(r=>setTimeout(r,450));
+  mark(2);
+  out.textContent += `\n\ntool: query-docs\nargs: { libraryId: "${hit.id}", query: "..." }\n\n← docs:\n` + hit.snippets.map(x=>x).join('\n\n');
+  await new Promise(r=>setTimeout(r,350));
+  mark(3);
+  out.textContent += `\n\n<span class="ok">✔</span> Host 将上述 docs 拼进当前 turn，Agent 再生成代码（避免训练数据里的过时 API）。`.replace('<span class="ok">✔</span>','✔');
+};
+</script>
+</body>
+</html>

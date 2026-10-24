@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Demo 1 · Agent Skills 渐进披露</title>
+<style>
+  :root { --bg:#0f1419; --card:#1a2332; --accent:#7c9cff; --ok:#3dd68c; --muted:#8b9bb4; --text:#e7ecf3; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, sans-serif; background:var(--bg); color:var(--text); padding:24px; }
+  h1 { font-size:1.25rem; margin:0 0 8px; }
+  p.lead { color:var(--muted); margin:0 0 20px; font-size:.9rem; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:800px){ .grid{grid-template-columns:1fr;} }
+  .card { background:var(--card); border-radius:12px; padding:16px; border:1px solid #2a3548; }
+  .card h2 { font-size:.95rem; margin:0 0 12px; color:var(--accent); }
+  .skill { padding:10px 12px; border-radius:8px; background:#121a26; margin-bottom:8px; cursor:pointer; border:1px solid transparent; }
+  .skill:hover, .skill.active { border-color:var(--accent); }
+  .skill .name { font-weight:600; }
+  .skill .desc { color:var(--muted); font-size:.8rem; margin-top:4px; }
+  .ctx { font-family: ui-monospace, monospace; font-size:.75rem; white-space:pre-wrap; background:#0b1018; padding:12px; border-radius:8px; min-height:180px; color:#b8c5d6; }
+  .bar { display:flex; gap:8px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+  button { background:var(--accent); color:#0b1020; border:0; padding:8px 14px; border-radius:8px; font-weight:600; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  .meter { height:8px; background:#121a26; border-radius:99px; overflow:hidden; flex:1; min-width:120px; }
+  .meter > i { display:block; height:100%; background:var(--ok); width:8%; transition:width .3s; }
+  .hint { font-size:.75rem; color:var(--muted); margin-top:8px; }
+  footer { margin-top:20px; font-size:.75rem; color:var(--muted); }
+</style>
+</head>
+<body>
+  <h1>Demo 1 · Agent Skills 渐进披露</h1>
+  <p class="lead">模拟 Host 只预载 name/description；点击 skill 才把 SKILL.md 注入上下文（对应 anthropics/skills / agentskills 规范）。</p>
+  <div class="bar">
+    <button type="button" id="reset">重置为仅元数据</button>
+    <button type="button" class="ghost" id="flood">反例：一次性加载全部全文</button>
+    <span style="font-size:.8rem;color:var(--muted)">上下文占用</span>
+    <div class="meter" title="相对上下文占用"><i id="meter"></i></div>
+    <span id="tokens" style="font-size:.8rem;color:var(--ok)">~120 tok</span>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <h2>已发现的 Skills（元数据层）</h2>
+      <div id="list"></div>
+      <p class="hint">真实实现：扫描 ~/.agents/skills、.claude/skills、项目 skills/，只解析 frontmatter。</p>
+    </div>
+    <div class="card">
+      <h2>Agent 当前上下文</h2>
+      <div class="ctx" id="ctx"></div>
+    </div>
+  </div>
+  <footer>本地静态 demo · 开源 AI Agent Skills/MCP 周报 2026-W43 · 非官方产品 UI</footer>
+<script>
+const skills = [
+  { id:'frontend-design', name:'frontend-design', desc:'生成有品味的前端界面与组件结构', body:'# frontend-design\n\n## Instructions\n1. 先明确视觉层级与组件边界\n2. 避免通用 AI 审美；使用具体排版与色板\n3. 输出可运行的 HTML/CSS/JS\n\n## Scripts\n- scaffold.sh' },
+  { id:'mcp-builder', name:'mcp-builder', desc:'指导创建符合规范的 MCP Server', body:'# mcp-builder\n\n## Instructions\n1. 选定 transport（stdio / HTTP）\n2. 定义 tools / resources / prompts\n3. 写清鉴权与错误模型\n\n## Refs\n- MCP specification' },
+  { id:'webapp-testing', name:'webapp-testing', desc:'用浏览器自动化做 Web 应用验收', body:'# webapp-testing\n\n## Instructions\n1. 列出关键用户路径\n2. 用 Playwright/MCP 逐步断言\n3. 失败时保留截图与 DOM 摘要' },
+];
+const list = document.getElementById('list');
+const ctx = document.getElementById('ctx');
+const meter = document.getElementById('meter');
+const tokens = document.getElementById('tokens');
+let loaded = new Set();
+
+function renderList() {
+  list.innerHTML = skills.map(s => `
+    <div class="skill ${loaded.has(s.id)?'active':''}" data-id="${s.id}">
+      <div class="name">${s.name}</div>
+      <div class="desc">${s.desc}</div>
+    </div>`).join('');
+  list.querySelectorAll('.skill').forEach(el => el.onclick = () => activate(el.dataset.id));
+}
+function estimate() {
+  const meta = skills.map(s => s.name + s.desc).join('').length;
+  const bodies = skills.filter(s => loaded.has(s.id)).map(s => s.body).join('').length;
+  const flood = window.__flood ? skills.map(s => s.body).join('').length : 0;
+  const chars = meta + bodies + flood;
+  const tok = Math.round(chars / 4) + 40;
+  const pct = Math.min(100, Math.round(tok / 8));
+  meter.style.width = pct + '%';
+  tokens.textContent = '~' + tok + ' tok';
+  return { meta, bodies, flood, tok };
+}
+function renderCtx() {
+  let text = '## Available skills (metadata only)\n';
+  skills.forEach(s => { text += `- ${s.name}: ${s.desc}\n`; });
+  if (window.__flood) {
+    text += '\n## ⚠️ FLOOD MODE: all SKILL.md loaded\n';
+    skills.forEach(s => { text += '\n' + s.body + '\n'; });
+  } else {
+    loaded.forEach(id => {
+      const s = skills.find(x => x.id === id);
+      text += '\n## Activated: ' + s.name + '\n' + s.body + '\n';
+    });
+  }
+  ctx.textContent = text;
+  estimate();
+}
+function activate(id) {
+  window.__flood = false;
+  loaded.add(id);
+  renderList(); renderCtx();
+}
+document.getElementById('reset').onclick = () => { loaded.clear(); window.__flood=false; renderList(); renderCtx(); };
+document.getElementById('flood').onclick = () => { loaded.clear(); window.__flood=true; renderList(); renderCtx(); };
+renderList(); renderCtx();
+</script>
+</body>
+</html>

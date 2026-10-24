@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Demo 2 · browser-use MCP 流程</title>
+<style>
+  :root { --bg:#101010; --panel:#1c1c1c; --line:#333; --accent:#ff5c5c; --ok:#5cff9d; --muted:#999; --text:#f2f2f2; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, sans-serif; background:var(--bg); color:var(--text); padding:24px; }
+  h1 { font-size:1.25rem; margin:0 0 8px; }
+  p.lead { color:var(--muted); margin:0 0 16px; font-size:.9rem; }
+  .row { display:grid; grid-template-columns:1.1fr .9fr; gap:16px; }
+  @media (max-width:900px){ .row{grid-template-columns:1fr;} }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .browser { border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff; color:#111; min-height:260px; }
+  .chrome { background:#e8e8e8; padding:8px 10px; display:flex; gap:6px; align-items:center; font-size:.75rem; }
+  .dot { width:10px; height:10px; border-radius:50%; background:#ff5f57; }
+  .dot:nth-child(2){background:#febc2e;} .dot:nth-child(3){background:#28c840;}
+  .url { flex:1; background:#fff; border-radius:6px; padding:4px 8px; border:1px solid #ccc; }
+  .page { padding:16px; font-size:.9rem; }
+  .log { font-family:ui-monospace,monospace; font-size:.75rem; max-height:320px; overflow:auto; white-space:pre-wrap; color:#cde; }
+  button { background:var(--accent); color:#fff; border:0; padding:8px 14px; border-radius:8px; font-weight:600; cursor:pointer; margin-right:8px; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .tag { display:inline-block; font-size:.7rem; padding:2px 6px; border-radius:4px; background:#2a2a2a; color:var(--ok); margin-bottom:8px; }
+  footer { margin-top:16px; font-size:.75rem; color:var(--muted); }
+</style>
+</head>
+<body>
+  <h1>Demo 2 · browser-use MCP 核心流程</h1>
+  <p class="lead">示意：Agent 经 MCP 调用 browser-use → 真实浏览器动作 → 结果回到对话。对应仓库 browser-use/browser-use（MIT）。</p>
+  <div style="margin-bottom:12px">
+    <button id="run" type="button">运行示意任务</button>
+    <button id="reset" type="button" style="background:#444">重置</button>
+  </div>
+  <div class="row">
+    <div class="panel">
+      <div class="tag">MCP tools · browser session</div>
+      <div class="browser">
+        <div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><div class="url" id="url">about:blank</div></div>
+        <div class="page" id="page">等待 Agent 下发导航…</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="tag">tool call log</div>
+      <div class="log" id="log">idle\n</div>
+    </div>
+  </div>
+  <footer>本地静态 demo · 周报 2026-W43 · 不发起真实网络请求</footer>
+<script>
+const steps = [
+  { tool:'browser_navigate', args:{ url:'https://example.com' }, url:'https://example.com', html:'<h2>Example Domain</h2><p>This domain is for use in illustrative examples.</p><button id="more">More information</button>' },
+  { tool:'browser_click', args:{ selector:'#more' }, url:'https://example.com/about', html:'<h2>About</h2><ul><li>RFC 2606</li><li>IANA reserved</li></ul>' },
+  { tool:'browser_extract', args:{ goal:'列出要点' }, url:'https://example.com/about', html:null, extract:'要点: 1) 示例保留域 2) 文档常用占位' },
+];
+const log = document.getElementById('log');
+const page = document.getElementById('page');
+const url = document.getElementById('url');
+const runBtn = document.getElementById('run');
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+async function run(){
+  runBtn.disabled = true;
+  log.textContent = 'session.start()\n';
+  for (const s of steps) {
+    log.textContent += `→ ${s.tool}(${JSON.stringify(s.args)})\n`;
+    await sleep(500);
+    url.textContent = s.url;
+    if (s.html) page.innerHTML = s.html;
+    if (s.extract) {
+      log.textContent += `← extract: ${s.extract}\n`;
+      page.innerHTML += `<hr/><pre style="background:#f6f6f6;padding:8px">${s.extract}</pre>`;
+    } else {
+      log.textContent += `← ok (dom snapshot ${s.html.length} chars)\n`;
+    }
+    await sleep(350);
+  }
+  log.textContent += 'agent: 已汇总页面要点，任务完成。\n';
+  runBtn.disabled = false;
+}
+document.getElementById('run').onclick = run;
+document.getElementById('reset').onclick = () => {
+  log.textContent = 'idle\n'; url.textContent = 'about:blank'; page.textContent = '等待 Agent 下发导航…'; runBtn.disabled = false;
+};
+</script>
+</body>
+</html>
