@@ -30,7 +30,7 @@
 </head>
 <body>
   <h1>Demo 1 · Agent Skills 渐进披露</h1>
-  <p class="lead">模拟 Host 只预载 name/description；点击 skill 才把 SKILL.md 注入上下文（对应 anthropics/skills / agentskills 规范）。</p>
+  <p class="lead">模拟 Host 只预载 name/description；点击 skill 才把 SKILL.md 注入上下文（对应 anthropics/skills / agentskills 规范；W44 星数已复核）。</p>
   <div class="bar">
     <button type="button" id="reset">重置为仅元数据</button>
     <button type="button" class="ghost" id="flood">反例：一次性加载全部全文</button>
@@ -49,7 +49,7 @@
       <div class="ctx" id="ctx"></div>
     </div>
   </div>
-  <footer>本地静态 demo · 开源 AI Agent Skills/MCP 周报 2026-W43 · 非官方产品 UI</footer>
+  <footer>本地静态 demo · 开源 AI Agent Skills/MCP 周报 2026-W44 · 非官方产品 UI</footer>
 <script>
 const skills = [
   { id:'frontend-design', name:'frontend-design', desc:'生成有品味的前端界面与组件结构', body:'# frontend-design\n\n## Instructions\n1. 先明确视觉层级与组件边界\n2. 避免通用 AI 审美；使用具体排版与色板\n3. 输出可运行的 HTML/CSS/JS\n\n## Scripts\n- scaffold.sh' },
