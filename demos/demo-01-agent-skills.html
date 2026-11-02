@@ -30,7 +30,7 @@
 </head>
 <body>
   <h1>Demo 1 · Agent Skills 渐进披露</h1>
-  <p class="lead">模拟 Host 只预载 name/description；点击 skill 才把 SKILL.md 注入上下文（对应 anthropics/skills / agentskills 规范；W44 星数已复核）。</p>
+  <p class="lead">模拟 Host 只预载 name/description；点击 skill 才把 SKILL.md 注入上下文（对应 anthropics/skills ~186k★ / agentskills 规范；W45 星数已核实）。</p>
   <div class="bar">
     <button type="button" id="reset">重置为仅元数据</button>
     <button type="button" class="ghost" id="flood">反例：一次性加载全部全文</button>
@@ -49,11 +49,11 @@
       <div class="ctx" id="ctx"></div>
     </div>
   </div>
-  <footer>本地静态 demo · 开源 AI Agent Skills/MCP 周报 2026-W44 · 非官方产品 UI</footer>
+  <footer>本地静态 demo · 开源 AI Agent Skills/MCP 周报 2026-W45 · 非官方产品 UI</footer>
 <script>
 const skills = [
   { id:'frontend-design', name:'frontend-design', desc:'生成有品味的前端界面与组件结构', body:'# frontend-design\n\n## Instructions\n1. 先明确视觉层级与组件边界\n2. 避免通用 AI 审美；使用具体排版与色板\n3. 输出可运行的 HTML/CSS/JS\n\n## Scripts\n- scaffold.sh' },
-  { id:'mcp-builder', name:'mcp-builder', desc:'指导创建符合规范的 MCP Server', body:'# mcp-builder\n\n## Instructions\n1. 选定 transport（stdio / HTTP）\n2. 定义 tools / resources / prompts\n3. 写清鉴权与错误模型\n\n## Refs\n- MCP specification' },
+  { id:'mcp-builder', name:'mcp-builder', desc:'指导创建符合规范的 MCP Server', body:'# mcp-builder\n\n## Instructions\n1. 选定 transport（stdio / HTTP）\n2. 优先 MCP TypeScript SDK v2（@modelcontextprotocol/server）\n3. 定义 tools / resources / prompts 与鉴权\n4. 跑自检脚本验证 server\n\n## Refs\n- MCP specification · SDK v2 guide' },
   { id:'webapp-testing', name:'webapp-testing', desc:'用浏览器自动化做 Web 应用验收', body:'# webapp-testing\n\n## Instructions\n1. 列出关键用户路径\n2. 用 Playwright/MCP 逐步断言\n3. 失败时保留截图与 DOM 摘要' },
 ];
 const list = document.getElementById('list');
